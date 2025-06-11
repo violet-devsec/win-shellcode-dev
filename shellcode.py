@@ -151,6 +151,39 @@ CODE = (
     "   dec ecx                         ;"  # Decrement counter (uiValueA)
     "   jmp copy_headers                ;"  # Repeat loop
     "done_copy:                          "
+    #STEP 3: load in all sections
+    "   mov rax, rbx                    ;"  # RAX = Optional Header value
+    "   sub rbx, 0x18                   ;"  # RBX = NT Header value
+    "   add rbx, 0x4                    ;"  # RBX = File Header
+    "   add ax, [rbx + 0x10]            ;"  # RAX = Optional Header value + File Header -> Size of optional header = RVA of next section
+    "   mov r8, rax                     ;"  # R8 = uiValueA = VA of first  section
+    "   mov cx, [rbx + 0x2]             ;"  # RCX= File Header -> Number of sections
+    "iterate_sections:                   "
+    "   test ecx, ecx                   ;"
+    "   jz sections_done                ;"
+    "   mov rax, r13                    ;"  # RAX = Base address, Calculating uiValueB
+    "   mov ebx, [r8 + 0xc]             ;"  # [0xc=12] RAX = uiBaseAddress + ((PIMAGE_SECTION_HEADER)uiValueA)->VirtualAddress
+    "   add rax, rbx                    ;"
+    "   mov r9, rax                     ;"  # R9 = uiValueB
+    "   mov rax, r12                    ;"  # RAX = uiLibraryAddress, Caluculating uiValueC
+    "   mov ebx, [r8 + 0x14]            ;"  # [0x14=20] RAX = uiLibraryAddress + ((PIMAGE_SECTION_HEADER)uiValueA)->PointerToRawData
+    "   add rax, rbx                    ;"
+    "   mov r10, rax                    ;"  # R10 = uiValueC
+    "   mov edx, [r8 + 0x10]            ;"  # [0x10=16] EDX = ((PIMAGE_SECTION_HEADER)uiValueA)->SizeOfRawData
+    "copy_section:                       "
+    "   test edx, edx                   ;"
+    "   jz next_section                 ;"
+    "   mov al, [r10]                   ;"  # al = *(BYTE *)uiValueC
+    "   mov [r9], al                    ;"  # *(BYTE *)uiValueB = al
+    "   inc r10                         ;"  # uiValueC++
+    "   inc r9                          ;"  # uiValueB++
+    "   dec edx                         ;"  # uiValueD--
+    "   jmp copy_section                ;"
+    "next_section:                       "
+    "   add r8, 0x28                    ;"  # [40 = 0x28] uiValueA += sizeof(IMAGE_SECTION_HEADER)
+    "   dec ecx                         ;"
+    "   jmp iterate_sections            ;"
+    "sections_done:                      "
  )
 
 ks = Ks(KS_ARCH_X86, KS_MODE_64)
