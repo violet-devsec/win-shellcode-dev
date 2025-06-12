@@ -184,6 +184,66 @@ CODE = (
     "   dec ecx                         ;"
     "   jmp iterate_sections            ;"
     "sections_done:                      "
+    #STEP 4: process images import table.
+    "   lea rax, [r12+0x80+0x18+0x70+0x8];" # uiValueB = (ULONG_PTR)&((PIMAGE_NT_HEADERS)uiHeaderValue)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
+    "   mov [rbp+0x50], rax             ;"  # Store for future use
+    "   mov eax, [rax]                  ;"  # (PIMAGE_DATA_DIRECTORY)uiValueB)->VirtualAddress
+    "   add rax, r13                    ;"  # uiValueC = (uiBaseAddress + ((PIMAGE_DATA_DIRECTORY)uiValueB)->VirtualAddress)
+    "   mov [rbp+0x58], rax             ;"  # Store for future use
+    "process_imports:                    "
+    "   mov rax, [rbp+0x58]             ;"  # uiValueC
+    "   mov eax, [rax+0xc]              ;"  # Name RVA = (PIMAGE_IMPORT_DESCRIPTOR)uiValueC)->Name
+    "   test eax, eax                   ;"  
+    "   jz end_process_imports          ;"
+    "   add rax, r13                    ;"  # Name VMA, Starting to prepare vars for LoadLibrary() call.
+    "   mov rcx, rax                    ;"  # Param: DLL name to load.
+    "   call qword ptr [rbp+0x28]       ;"  # call LoadLibraryA()
+    "   mov [rbp+0x60], rax             ;"  # Store address value of loaded library
+    "   mov rax, [rbp+0x58]             ;"  # getting uiValueC for calculating uiValueD
+    "   mov ebx, [rax+0x0]              ;"  # PIMAGE_IMPORT_DESCRIPTOR -> OriginalFirstThunk
+    "   add rbx, r13                    ;"  # uiValueD
+    "   mov [rbp+0x68], rbx             ;"  # Store for future use
+    "   mov eax, [rax+0x10]             ;"  # PIMAGE_IMPORT_DESCRIPTOR -> FirstThunk
+    "   add rax, r13                    ;"  # uiValueA
+    "   mov [rbp+0x70], rax             ;"  # Store for future use
+    "process_functions:                  "
+    "   mov rax, [rbp+0x70]             ;"  # uiValueA
+    "   mov rax, [rax]                  ;"  # DEREF(uiValueA)
+    "   test rax, rax                   ;"
+    "   jz end_process_functions        ;"
+    "   mov rax, [rbp+0x68]             ;"  # Starting sanity check uiValueD as some compilers only import by FirstThunk
+    "   test rax, rax                   ;"
+    "   jz import_by_name               ;"
+    "   mov rax, [rax]                  ;"
+    "   mov r8, 0x8000000000000000      ;"
+    "   and rax, r8                     ;"
+    "   jz import_by_name               ;"
+    "import_by_ordinal:                  "
+    "   jmp next_function               ;"
+    "import_by_name:                     "
+    "   mov rax, [rbp+0x70]             ;"  # uiValueA
+    "   mov rax, [rax]                  ;"  # RVA of Name Table
+    "   add rax, r13                    ;"  # uiValueB = VA of this functions import by name struct
+    "   mov rcx, [rbp+0x60]             ;"  # Param1: Loaded library address; Preparing params for GetProcAddress
+    "   mov rdx, rax                    ;"  # Param2: uiValueB = Function name
+    "   add rdx, 0x2                    ;"  # Name at offset 0x2
+    #"   add rsp, 0x8                    ;"  # Make some adjustment on the stack
+    "   call qword ptr [rbp+0x38]       ;"  # call GetProcAddress
+    #"   sub rsp, 0x8                    ;"  # Get back the stack space
+    "   mov rcx, [rbp+0x70]             ;"  # uiValueA
+    "   mov [rcx], rax                  ;"  # Updates the Thunk address
+    "next_function:                      "
+    "   add qword ptr [rbp+0x70], 0x8   ;"  # Moving to next function, uiValueA + 0x8, Size of a pointer
+    "   mov rax, [rbp+0x68]             ;"  # uiValueD
+    "   test rax, rax                   ;"  # checking uiValueD
+    "   jz skip_valueD                  ;"
+    "   add qword ptr [rbp+0x68], 0x8   ;"  # uiValueD + 0x8, size of a pointer
+    "skip_valueD:                        "
+    "   jmp process_functions           ;"
+    "end_process_functions:              "
+    "   add qword ptr [rbp+0x58], 0x14  ;"  # adding 20=0x14, Size of Import Directory Table
+    "   jmp process_imports             ;"
+    "end_process_imports:                "
  )
 
 ks = Ks(KS_ARCH_X86, KS_MODE_64)
