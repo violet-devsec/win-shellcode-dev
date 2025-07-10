@@ -244,6 +244,62 @@ CODE = (
     "   add qword ptr [rbp+0x58], 0x14  ;"  # adding 20=0x14, Size of Import Directory Table
     "   jmp process_imports             ;"
     "end_process_imports:                "
+    #STEP 5: process images relocations. 
+    "   mov rax, r13                    ;"  # uiBaseAddress value 
+    "   mov rbx, [r12+0x80+0x18+0x18]   ;"  # ((PIMAGE_NT_HEADERS)uiHeaderValue)->OptionalHeader.ImageBase (0x18 offset from optional header) 
+    "   sub rax, rbx                    ;"  # Base address delta to perform relocations (even if we load at desired image base)  
+    "   mov [rbp+0x50], rax             ;"  # uiLibraryAddress 
+    "   lea rax, [r12+0x108+0x28]       ;"  # (5*8=40=0x28)uiValueB = (ULONG_PTR)&((PIMAGE_NT_HEADERS)uiHeaderValue)->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC] 
+    "   mov [rbp+0x58], rax             ;"  # uiValueB, store for future use 
+    "process_reloc:                      " 
+    "   mov rax, [rbp+0x58]             ;" 
+    "   mov eax, [rax+0x4]              ;"  # (PIMAGE_DATA_DIRECTORY)uiValueB)->Size 
+    "   test rax, rax                   ;" 
+    "   jz end_process_reloc            ;" 
+    "   mov rax, [rbp+0x58]             ;"  
+    "   mov eax, [rax]                  ;"  # (PIMAGE_DATA_DIRECTORY)uiValueB)->VirtualAddress 
+    "   add rax, r13                    ;"  # uiValueC is now the first entry (IMAGE_BASE_RELOCATION) 
+    "   mov [rbp+0x60], rax             ;"  # uiValueC, store for future use 
+    "iterate_blocks:                     " 
+    "   mov rax, [rbp+0x60]             ;" 
+    "   mov eax, [rax+0x4]              ;"  # (PIMAGE_BASE_RELOCATION)uiValueC)->SizeOfBlock 
+    "   test eax, eax                   ;" 
+    "   jz end_process_reloc            ;" 
+    "   mov rbx, [rbp+0x60]             ;" 
+    "   mov ebx, [rbx]                  ;"  # ((PIMAGE_BASE_RELOCATION)uiValueC)->VirtualAddress 
+    "   add rbx, r13                    ;"  # uiValueA = the VA for this relocation block 
+    "   mov [rbp+0x68], rbx             ;"  # uiValueA, store for future use 
+    "   sub eax, 0x8                    ;"  # (PIMAGE_BASE_RELOCATION)uiValueC)->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION) 
+    "   mov ecx, 0x2                    ;"  # sizeof(IMAGE_RELOC) 
+    "   xor edx, edx                    ;" 
+    "   div ecx                         ;"  # EAX(Quotient) = uiValueB = EAX / sizeof(IMAGE_RELOC) = number of entries in this relocation block 
+    "   mov rdx, [rbp+0x60]             ;"  # uiValueC 
+    "   add rdx, 0x8                    ;"  # uiValueD = uiValueC + sizeof(IMAGE_BASE_RELOCATION) = the first entry in the current relocation block 
+    "iterate_entries:                    " 
+    "   test eax, eax                   ;"  # test uiValueB 
+    "   jz next_reloc_block             ;" 
+    "   movzx rcx, word ptr [rdx]       ;"  # Load the 16-bit IMAGE_RELOC entry 
+    "   shr rcx, 12                     ;"  # Shift right to isolate the 4-bit Type field 
+    "   and rcx, 0xF                    ;"  # Mask out any extraneous bits     
+    "   cmp rcx, 0XA                    ;"  # IMAGE_REL_BASED_DIR64 
+    "   je relocate_dir64               ;" 
+    "   cmp rcx, 0x3                    ;"  # IMAGE_REL_BASED_HIGHLOW 
+    "   je relocate_highlow             ;" 
+    "   cmp rcx, 0x1                    ;"  # IMAGE_REL_BASED_HIGH 
+    "   je relocate_high                ;"   
+    "   cmp rcx, 0x2                    ;"  # IMAGE_REL_BASED_LOW 
+    "   je relocate_low                 ;" 
+    "   jmp next_entry                  ;" 
+    "relocate_dir64:                     " 
+    "   movzx rcx, word ptr [rdx]       ;"  # Load the 16-bit IMAGE_RELOC entry 
+    "   and rcx, 0xFFF                  ;"  # Relocation Offset, (PIMAGE_RELOC)uiValueD)->offset 
+    "   mov r8, [rbp+0x68]              ;"  # uiValueA 
+    "   add r8, rcx                     ;"  # (uiValueA + ((PIMAGE_RELOC)uiValueD)->offset) 
+    "   mov rbx, [r8]                   ;"  # Relocation to be applied 
+    "   add rbx, [rbp+0x50]             ;"  # + uiLibraryAddress 
+    "   mov [r8], rbx                   ;" 
+    "   jmp next_entry                  ;"
+    "end_process_reloc:                  " 
  )
 
 ks = Ks(KS_ARCH_X86, KS_MODE_64)
