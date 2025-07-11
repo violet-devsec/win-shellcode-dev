@@ -298,7 +298,43 @@ CODE = (
     "   mov rbx, [r8]                   ;"  # Relocation to be applied 
     "   add rbx, [rbp+0x50]             ;"  # + uiLibraryAddress 
     "   mov [r8], rbx                   ;" 
-    "   jmp next_entry                  ;"
+    "   jmp next_entry                  ;"    
+    "relocate_highlow:                   "
+    "   movzx rcx, word ptr [rdx]       ;"  # Load the 16-bit IMAGE_RELOC entry 
+    "   and rcx, 0xFFF                  ;"  # Relocation Offset, (PIMAGE_RELOC)uiValueD)->offset 
+    "   mov r8, [rbp+0x68]              ;"  # uiValueA 
+    "   add r8, rcx                     ;"  # (uiValueA + ((PIMAGE_RELOC)uiValueD)->offset) 
+    "   mov rbx, [r8]                   ;"  # Relocation to be applied 
+    "   add ebx, [rbp+0x50]             ;"  # + uiLibraryAddress 
+    "   mov [r8], rbx                   ;" 
+    "   jmp next_entry                  ;" 
+    "relocate_high:                      " 
+    "   movzx rcx, word ptr [rdx]       ;"  # Load the 16-bit IMAGE_RELOC entry 
+    "   and rcx, 0xFFF                  ;"  # Relocation Offset, (PIMAGE_RELOC)uiValueD)->offset 
+    "   mov r8, [rbp+0x68]              ;"  # uiValueA 
+    "   add r8, rcx                     ;"  # (uiValueA + ((PIMAGE_RELOC)uiValueD)->offset) 
+    "   mov rbx, [r8]                   ;"  # Relocation to be applied 
+    "   add bh, [rbp+0x50]              ;"  # + uiLibraryAddress 
+    "   mov [r8], rbx                   ;" 
+    "   jmp next_entry                  ;" 
+    "relocate_low:                       " 
+    "   movzx rcx, word ptr [rdx]       ;"  # Load the 16-bit IMAGE_RELOC entry 
+    "   and rcx, 0xFFF                  ;"  # Relocation Offset, (PIMAGE_RELOC)uiValueD)->offset 
+    "   mov r8, [rbp+0x68]              ;"  # uiValueA 
+    "   add r8, rcx                     ;"  # (uiValueA + ((PIMAGE_RELOC)uiValueD)->offset) 
+    "   mov rbx, [r8]                   ;"  # Relocation to be applied 
+    "   add bl, [rbp+0x50]              ;"  # + uiLibraryAddress 
+    "   mov [r8], rbx                   ;" 
+    "   jmp next_entry                  ;" 
+    "next_entry:                         " 
+    "   add rdx, 0x2                    ;"  # uiValueD += sizeof( IMAGE_RELOC )
+    "   dec eax                         ;" 
+    "   jmp iterate_entries             ;"     
+    "next_reloc_block:                   " 
+    "   mov r9, [rbp+0x60]              ;"  # uiValueC 
+    "   mov r9d, [r9+0x4]               ;"  # (PIMAGE_BASE_RELOCATION)uiValueC)->SizeOfBlock 
+    "   add qword ptr [rbp+0x60], r9    ;"  # get the next entry in the relocation directory 
+    "   jmp iterate_blocks              ;" 
     "end_process_reloc:                  " 
  )
 
