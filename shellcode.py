@@ -336,6 +336,20 @@ CODE = (
     "   add qword ptr [rbp+0x60], r9    ;"  # get the next entry in the relocation directory 
     "   jmp iterate_blocks              ;" 
     "end_process_reloc:                  " 
+    #STEP 6: call images entry point 
+    "   xor rbx, rbx                    ;" 
+    "   mov bx, [r12+0x80+0x18+0x10]    ;"  # ((PIMAGE_NT_HEADERS)uiHeaderValue)->OptionalHeader.AddressOfEntryPoint (0x10 offset from optional header) 
+    "   add rbx, r13                    ;"  # uiValueA = AddressOfEntryPoint + uiBaseAddress 
+    "   mov rcx, 0xffffffffffffffff     ;"  # Param 1 : (HANDLE)-1 
+    "   xor rdx, rdx                    ;"  # Param 2 : NULL 
+    "   xor r8, r8                      ;"  # Param 3 : 0 
+    "   call qword ptr [rbp+0x48]       ;"  # call pNtFlushInstructionCache 
+    "   mov rcx, r13                    ;"  # Param 1 : uiBaseAddress 
+    "   mov rdx, 0x1                    ;"  # Param 2 : DLL_PROCESS_ATTACH 
+    "   xor r8, r8                      ;"  # Param 3 : NULL 
+    #"   sub rsp, 0x20                   ;"  # Make some adjustment on the stack 
+    "   call rbx                        ;"  # Call the entry point 
+    #"   add rsp, 0x20                   ;" 
  )
 
 ks = Ks(KS_ARCH_X86, KS_MODE_64)
