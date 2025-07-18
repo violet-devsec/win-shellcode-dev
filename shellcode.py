@@ -350,6 +350,12 @@ CODE = (
     #"   sub rsp, 0x20                   ;"  # Make some adjustment on the stack 
     "   call rbx                        ;"  # Call the entry point 
     #"   add rsp, 0x20                   ;" 
+    "exit_shellcode:                     " 
+    "   mov rcx, 0xffffffffffffffff     ;" 
+    "   xor rdx, rdx                    ;" 
+    "   call qword ptr [rbp+0x20]       ;"  
+    "dll_base:                           " 
+    "   nop                             ;" 
  )
 
 ks = Ks(KS_ARCH_X86, KS_MODE_64)
