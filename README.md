@@ -1,6 +1,6 @@
 # Windows x64 shellcode to load DLL from memory
 
-A brief description of what this project does and who it's for.
+A reflective DLL injector written in x64 ASM language. This does the minimum required operations to load a DLL which is loaded in memory(no need to be on disk).
 
 ## Table of Contents
 
