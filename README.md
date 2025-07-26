@@ -14,6 +14,7 @@ This is done step by step as,\
 ## Table of Contents
 
 - [Usage](#usage)
+   > python shellcode.py
 - [Contributing](#contributing)
 - [License](#license)
 
