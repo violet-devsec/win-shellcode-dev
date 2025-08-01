@@ -4,7 +4,7 @@
 BOOL WINAPI DllMain(HINSTANCE hinstDll, DWORD dwReason, LPVOID lpReserved)
 {
     BOOL bReturnValue = TRUE;
-    switch(dWReason)
+    switch(dwReason)
     {
         case DLL_PROCESS_ATTACH:
             MessageBoxA(NULL, "Hello from Target DLL !!", "Target", MB_OK);
