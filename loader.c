@@ -1,11 +1,12 @@
 #include <windows.h>
 #include <tchar.h>
+#include <stdio.h>
 
 int main()
 {
     DWORD bytesRead;
     BOOL fileReadSuccess, filePermChangeSuccess, processCreateSuccess;
-    const TCHAR* filePath = _T("shellcode.h");
+    const TCHAR* filePath = _T("shellcode.bin");
 
     printf("Loader started!\n");
     printf("Shellcode path: %s\n", filePath);
