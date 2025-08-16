@@ -11,12 +11,16 @@ This is done step by step as,\
     6. Process all of DLL image's relocations\
     7. Call the DLL entry point
 
-## Table of Contents
-
-- [Usage](#usage)
+### Steps to try:
+- [Compiling target.dll](#CompilingDll)
+   > g++ -shared -o target.dll target.cpp -Wl,--out-implib,libtdll.a
+- [Create shellcode](#usage)
    > python shellcode.py
-- [Contributing](#contributing)
-- [License](#license)
+- [Compiling loader.exe](#CompilingExe)
+   > g++ loader.c -o loader.exe
+- [Running loader.exe](#CRunningExe)
+   > loader.exe
+
 
 ## Usage
 
@@ -25,7 +29,9 @@ Examples and instructions for using the project.
 ## Contributing
 
 Guidelines for contributing to the project.
+- [Contributing](#contributing)
 
 ## License
 
 Information about the project's license.
+- [License](#license)
