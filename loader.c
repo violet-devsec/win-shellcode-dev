@@ -3,16 +3,19 @@
 #include <stdio.h>
 #include <string.h>
 
-int main()
+int main(int argc, char* argv[])
 {
     DWORD bytesRead;
-    const TCHAR* filePath;
+    const char* filePath;
     BOOL fileReadSuccess, filePermChangeSuccess, processCreateSuccess;
-    //scanf("Enter the shellcode(shellcode+dll) binary file path: %d", filePath);
-    filePath = _T("shellcode.bin");
+    if(argc < 2)
+    {
+        printf("Shellcode file name is required. Usage: loader.exe <shellcode_file>\n");
+        return 0;
+    }
+    filePath = argv[1];
 
     printf("Loader started!\n");
-    printf("Shellcode path: %s\n", filePath);
 
     HANDLE hFile = CreateFile(filePath, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     DWORD fileSize = GetFileSize(hFile, NULL);
