@@ -14,7 +14,7 @@ This is done step by step as,\
 ### Steps to try:
 - [Compiling target.dll](#CompilingDll)
    > g++ -shared -o target.dll target.cpp -Wl,--out-implib,libtdll.a
-- [Create shellcode](#CreateShellcode)
+- [Compiling shellcode to binary](#CreateShellcode)
    > python shellcode.py (This step will create shellcode.bin which is shellcode+target.dll)
 - [Compiling loader.exe](#CompilingExe)
    > g++ loader.c -o loader.exe
