@@ -20,6 +20,8 @@ This is done step by step as,\
    > g++ loader.c -o loader.exe
 - [Running loader.exe](#RunningExe)
    > loader.exe shellcode.bin
+   
+   ![screenshot](images/out.png)
 
 
 ## Usage
