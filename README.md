@@ -9,7 +9,9 @@ This is done step by step as,\
     4. Load in all of our sections\
     5. Process DLL image's import table\
     6. Process all of DLL image's relocations\
-    7. Call the DLL entry point
+    7. Call the DLL entry point\
+
+These steps are followed from https://github.com/stephenfewer/ReflectiveDLLInjection
 
 ### Steps to try:
 - [Compiling target.dll](#CompilingDll)
